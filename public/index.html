@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch Comment Tool - Tăng Bình Luận Hàng Loạt Facebook</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 CDN (Composition API) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    [v-cloak] { display: none !important; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+  <div id="app" v-cloak class="max-w-6xl mx-auto px-4 py-8">
+    
+    <!-- HEADER -->
+    <header class="mb-8">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">
+              Batch Comment Tool
+            </h1>
+            <p class="text-sm text-slate-500">Tạo đơn tăng bình luận hàng loạt tự động cho bài viết Facebook</p>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Button Tra cứu dịch vụ -->
+          <button 
+            @click="openServicesModal" 
+            :disabled="isRunning"
+            class="px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition shadow-sm flex items-center gap-1.5"
+            title="Tra cứu danh sách dịch vụ và mã ID"
+          >
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            Tra Cứu Gói Dịch Vụ / ID
+          </button>
+
+          <!-- Button Nhập nhanh hàng loạt -->
+          <button 
+            @click="showBulkModal = true" 
+            :disabled="isRunning"
+            class="px-3 py-2 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-50 transition shadow-sm flex items-center gap-1.5"
+            title="Dán nhanh danh sách nhiều bài viết"
+          >
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Nhập Nhanh
+          </button>
+
+          <!-- Button Xuất CSV -->
+          <button 
+            @click="exportToCSV" 
+            :disabled="isRunning || tasks.length === 0"
+            class="px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition shadow-sm flex items-center gap-1.5"
+            title="Tải báo cáo kết quả đơn về máy tính"
+          >
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            Xuất CSV
+          </button>
+
+          <button 
+            @click="loadSampleData" 
+            :disabled="isRunning"
+            class="px-3 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition shadow-sm flex items-center gap-1.5"
+            title="Thêm dữ liệu mẫu thử nghiệm"
+          >
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Mẫu Thử
+          </button>
+
+          <button 
+            @click="resetAllStatus" 
+            :disabled="isRunning"
+            class="px-3 py-2 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition shadow-sm flex items-center gap-1.5"
+            title="Đặt lại trạng thái tất cả bài viết về chờ xử lý"
+          >
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Đặt Lại
+          </button>
+
+          <button 
+            @click="clearAllTasks" 
+            :disabled="isRunning"
+            class="px-3 py-2 text-xs font-medium text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 disabled:opacity-50 transition shadow-sm flex items-center gap-1.5"
+            title="Xóa toàn bộ bài viết"
+          >
+            <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Xóa Hết
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- STATUS & STATS OVERVIEW -->
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Tổng số bài</p>
+          <p class="text-2xl font-bold text-slate-800">{{ tasks.length }}</p>
+        </div>
+        <div class="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Chờ xử lý</p>
+          <p class="text-2xl font-bold text-amber-600">{{ countByStatus('idle') }}</p>
+        </div>
+        <div class="p-2.5 bg-amber-50 text-amber-600 rounded-lg">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Thành công</p>
+          <p class="text-2xl font-bold text-emerald-600">{{ countByStatus('success') }}</p>
+        </div>
+        <div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Thất bại</p>
+          <p class="text-2xl font-bold text-rose-600">{{ countByStatus('error') }}</p>
+        </div>
+        <div class="p-2.5 bg-rose-50 text-rose-600 rounded-lg">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUEUE CONTROLLER & PROGRESS BAR -->
+    <section class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 sticky top-4 z-20 backdrop-blur-md bg-white/95">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex h-3 w-3 relative">
+              <span v-if="isRunning" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3" :class="isRunning ? 'bg-blue-600' : 'bg-slate-400'"></span>
+            </span>
+            <h2 class="text-base font-semibold text-slate-800">Tiến Trình Xử Lý Hàng Đợi (Queue)</h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Mỗi bài viết được xử lý tuần tự kèm tự động nghỉ <strong>1.5 giây</strong> để chống spam và bảo vệ tài khoản API.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Button Start Queue -->
+          <button 
+            @click="runQueue"
+            :disabled="isRunning || tasks.length === 0"
+            class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium text-sm rounded-xl shadow-md shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition flex items-center gap-2"
+          >
+            <svg v-if="isRunning" class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>{{ isRunning ? 'Đang Chạy Hàng Đợi...' : 'Chạy Tất Cả Đơn Hàng' }}</span>
+          </button>
+
+          <!-- Button Stop Queue -->
+          <button 
+            v-if="isRunning"
+            @click="stopQueue"
+            class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium text-sm rounded-xl border border-rose-200 transition flex items-center gap-1.5"
+          >
+            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+            </svg>
+            Dừng Lại
+          </button>
+        </div>
+      </div>
+
+      <!-- PROGRESS BAR -->
+      <div class="mt-4">
+        <div class="flex items-center justify-between text-xs text-slate-600 mb-1.5">
+          <span class="font-medium">
+            Đã hoàn thành <strong class="text-blue-700">{{ completedCount }}</strong> / <strong>{{ tasks.length }}</strong> bài viết
+          </span>
+          <span class="font-semibold text-slate-700">{{ progressPercent }}%</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+          <div 
+            class="bg-gradient-to-r from-blue-600 to-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out" 
+            :style="{ width: progressPercent + '%' }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- ADVANCED SETTINGS BAR -->
+      <div class="mt-4 pt-3.5 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <!-- Service ID -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+            <span>Mã Gói Dịch Vụ (Package Name):</span>
+            <button @click="openServicesModal" class="text-blue-600 hover:underline text-[11px] font-normal">Tra cứu danh sách gói</button>
+          </label>
+          <div class="flex items-center gap-1.5">
+            <input 
+              type="text" 
+              v-model="activeServiceId" 
+              @input="saveSettings"
+              placeholder="Để trống = Dùng SERVICE_ID trong .env" 
+              class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-blue-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+        </div>
+
+        <!-- Delay Interval -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+            <span>Thời gian nghỉ giữa mỗi link:</span>
+            <span class="text-[10px] text-emerald-600 font-medium">Bảo vệ API Key</span>
+          </label>
+          <select 
+            v-model.number="delaySeconds" 
+            @change="saveSettings"
+            class="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          >
+            <option :value="1.5">1.5 giây (Tiêu chuẩn)</option>
+            <option :value="2">2.0 giây (Khuyên dùng khi có nhiều người)</option>
+            <option :value="3">3.0 giây (Rất an toàn)</option>
+            <option :value="5">5.0 giây (Chạy danh sách lớn)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIST OF POSTS (DYNAMIC TASKS) -->
+    <main class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <span>Danh Sách Bài Viết Cần Chạy</span>
+          <span class="px-2 py-0.5 text-xs font-semibold bg-slate-200 text-slate-700 rounded-full">
+            {{ tasks.length }}
+          </span>
+        </h3>
+        
+        <button 
+          @click="addTask"
+          :disabled="isRunning"
+          class="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition flex items-center gap-1.5 disabled:opacity-50"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          Thêm Bài Viết
+        </button>
+      </div>
+
+      <!-- Task Card Item -->
+      <div 
+        v-for="(task, index) in tasks" 
+        :key="task.id"
+        class="bg-white rounded-2xl border transition-all duration-200 shadow-sm overflow-hidden"
+        :class="{
+          'border-slate-200 hover:border-slate-300': task.status === 'idle',
+          'border-blue-400 ring-2 ring-blue-100 shadow-md': task.status === 'running',
+          'border-emerald-300 bg-emerald-50/10': task.status === 'success',
+          'border-rose-300 bg-rose-50/10': task.status === 'error'
+        }"
+      >
+        <!-- Card Header with status badge & delete button -->
+        <div class="px-5 py-3.5 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 font-bold text-xs flex items-center justify-center shadow-xs">
+              {{ index + 1 }}
+            </span>
+            <span class="text-xs font-medium text-slate-500">Bài viết #{{ index + 1 }}</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Dynamic Status Badges -->
+            <!-- Idle -->
+            <span 
+              v-if="task.status === 'idle'" 
+              class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-full border border-slate-200"
+            >
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Chờ xử lý
+            </span>
+
+            <!-- Running -->
+            <span 
+              v-else-if="task.status === 'running'" 
+              class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full border border-blue-200"
+            >
+              <svg class="animate-spin w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Đang xử lý...
+            </span>
+
+            <!-- Success -->
+            <span 
+              v-else-if="task.status === 'success'" 
+              class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200"
+            >
+              <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              Thành công (Order ID: #{{ task.orderId }})
+            </span>
+
+            <!-- Error -->
+            <span 
+              v-else-if="task.status === 'error'" 
+              class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-rose-100 text-rose-700 rounded-full border border-rose-200 max-w-xs md:max-w-md truncate"
+              :title="task.result"
+            >
+              <svg class="w-3.5 h-3.5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span class="truncate">Thất bại: {{ task.result }}</span>
+            </span>
+
+            <!-- Delete task button (chỉ hiển thị khi có từ 2 block trở lên) -->
+            <button 
+              v-if="tasks.length > 1"
+              @click="removeTask(index)"
+              :disabled="isRunning"
+              class="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition disabled:opacity-30"
+              title="Xóa bài viết này"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Card Body -->
+        <div class="p-5 space-y-4">
+          <!-- Link Input -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Link bài viết Facebook:
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                </svg>
+              </div>
+              <input 
+                type="text" 
+                v-model="task.link" 
+                :disabled="isRunning"
+                placeholder="https://www.facebook.com/.../posts/... hoặc https://fb.watch/..."
+                class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition disabled:bg-slate-100 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+
+          <!-- Comments Textarea -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Nội dung bình luận:
+              </label>
+              <!-- Realtime Comments Count Badge -->
+              <span 
+                class="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full"
+                :class="getValidCommentCount(task.comments) > 0 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-500'"
+              >
+                <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                </svg>
+                <span>{{ getValidCommentCount(task.comments) }} bình luận hợp lệ</span>
+              </span>
+            </div>
+
+            <textarea 
+              v-model="task.comments" 
+              :disabled="isRunning"
+              rows="3"
+              placeholder="Nhập nội dung bình luận (mỗi dòng 1 comment)&#10;Sản phẩm rất đẹp và uy tín!&#10;Tư vấn giúp mình qua tin nhắn nhé&#10;Cho mình xin giá với shop ơi..."
+              class="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition font-mono leading-relaxed disabled:bg-slate-100 disabled:cursor-not-allowed"
+            ></textarea>
+          </div>
+
+          <!-- Additional result feedback banner if error or success -->
+          <div 
+            v-if="task.result && task.status === 'error'" 
+            class="p-3 text-xs bg-rose-50 border border-rose-200 rounded-xl text-rose-700 flex items-start gap-2"
+          >
+            <svg class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <div>
+              <p class="font-semibold">Chi tiết lỗi:</p>
+              <p class="mt-0.5 break-all">{{ task.result }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add post bottom bar -->
+      <div class="pt-2 text-center">
+        <button 
+          @click="addTask"
+          :disabled="isRunning"
+          class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-blue-700 bg-white hover:bg-blue-50 border-2 border-dashed border-blue-300 rounded-2xl transition disabled:opacity-50"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          + Thêm Bài Viết Mới
+        </button>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-12 text-center text-xs text-slate-400 pb-8">
+      <p>Hệ thống tạo đơn tăng bình luận hàng loạt • Node.js Express + Vue 3 CDN</p>
+      <p class="mt-1">Dữ liệu API Key được lưu trữ an toàn trong file cấu hình .env phía Backend.</p>
+    </footer>
+
+    <!-- MODAL 1: TRA CỨU DỊCH VỤ & ID -->
+    <div 
+      v-if="showServicesModal" 
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
+    >
+      <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Tra Cứu Danh Sách Gói Dịch Vụ & ID</h3>
+            <p class="text-xs text-slate-500">Xem mã ID và gói dịch vụ để điền vào SERVICE_ID trong file .env</p>
+          </div>
+          <button 
+            @click="showServicesModal = false"
+            class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/50 transition"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="p-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div class="relative w-full sm:w-80">
+            <input 
+              type="text" 
+              v-model="serviceSearch" 
+              placeholder="Tìm theo tên gói hoặc ID..." 
+              class="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button 
+              @click="serviceFilterType = 'all'" 
+              :class="serviceFilterType === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'" 
+              class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
+            >
+              Tất cả ({{ servicesList.length }})
+            </button>
+            <button 
+              @click="serviceFilterType = 'comment'" 
+              :class="serviceFilterType === 'comment' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'" 
+              class="px-3 py-1.5 text-xs font-medium rounded-lg transition"
+            >
+              Chỉ gói Comment
+            </button>
+            <button 
+              @click="fetchServices" 
+              :disabled="loadingServices"
+              class="p-1.5 text-slate-600 hover:text-blue-600 rounded-lg hover:bg-slate-100 transition"
+              title="Tải lại danh sách"
+            >
+              <svg class="w-4 h-4" :class="{ 'animate-spin': loadingServices }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Modal Body (Table) -->
+        <div class="flex-1 overflow-y-auto p-4">
+          <div v-if="loadingServices" class="py-12 text-center text-slate-500 text-sm">
+            <svg class="animate-spin w-6 h-6 text-blue-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Đang tải danh sách dịch vụ từ nhà cung cấp...
+          </div>
+
+          <div v-else-if="servicesError" class="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
+            <p class="font-bold">Không thể tải danh sách dịch vụ:</p>
+            <p class="mt-1">{{ servicesError }}</p>
+          </div>
+
+          <div v-else-if="filteredServices.length === 0" class="py-12 text-center text-slate-400 text-sm">
+            Không tìm thấy gói dịch vụ nào phù hợp với từ khóa.
+          </div>
+
+          <table v-else class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-600 uppercase font-semibold sticky top-0">
+              <tr>
+                <th class="p-2.5 rounded-l-lg">ID</th>
+                <th class="p-2.5">Tên Dịch Vụ</th>
+                <th class="p-2.5">Danh Mục</th>
+                <th class="p-2.5">Giá / 1k</th>
+                <th class="p-2.5">Min / Max</th>
+                <th class="p-2.5 text-right rounded-r-lg">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="s in filteredServices" :key="s.service" class="hover:bg-blue-50/40 transition">
+                <td class="p-2.5 font-bold text-blue-600">#{{ s.service }}</td>
+                <td class="p-2.5 font-medium text-slate-800">{{ s.name }}</td>
+                <td class="p-2.5 text-slate-500">{{ s.category }}</td>
+                <td class="p-2.5 font-semibold text-emerald-600">{{ s.rate }}</td>
+                <td class="p-2.5 text-slate-500">{{ s.min }} - {{ s.max }}</td>
+                <td class="p-2.5 text-right">
+                  <button 
+                    @click="copyServiceId(s.service)" 
+                    class="px-2.5 py-1 bg-slate-100 hover:bg-blue-600 hover:text-white rounded text-slate-700 font-medium transition"
+                  >
+                    {{ copiedId === s.service ? 'Đã chép!' : 'Copy ID' }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-3 border-t border-slate-200 bg-slate-50 text-right">
+          <button 
+            @click="showServicesModal = false" 
+            class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs rounded-xl transition"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: NHẬP NHANH HÀNG LOẠT (BULK IMPORT) -->
+    <div 
+      v-if="showBulkModal" 
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
+    >
+      <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Nhập Nhanh Nhiều Bài Viết</h3>
+            <p class="text-xs text-slate-500">Dán danh sách các link Facebook và nội dung bình luận</p>
+          </div>
+          <button 
+            @click="showBulkModal = false"
+            class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/50 transition"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Danh sách Link bài viết Facebook (Mỗi dòng 1 link):
+            </label>
+            <textarea 
+              v-model="bulkLinksText" 
+              rows="5"
+              placeholder="https://www.facebook.com/.../posts/101&#10;https://www.facebook.com/.../posts/102&#10;https://www.facebook.com/.../posts/103"
+              class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Nội dung bình luận mẫu áp dụng cho các bài trên (Mỗi dòng 1 comment):
+            </label>
+            <textarea 
+              v-model="bulkCommentsText" 
+              rows="4"
+              placeholder="Sản phẩm rất đẹp và chất lượng!&#10;Cho mình xin giá với shop ơi&#10;Tư vấn giúp mình nhé"
+              class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <span class="text-xs text-slate-500">
+            Sẽ thêm khoảng <strong>{{ countLines(bulkLinksText) }}</strong> bài viết.
+          </span>
+          <div class="flex items-center gap-2">
+            <button 
+              @click="showBulkModal = false" 
+              class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium text-xs rounded-xl transition"
+            >
+              Hủy
+            </button>
+            <button 
+              @click="applyBulkImport" 
+              :disabled="countLines(bulkLinksText) === 0"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-xl disabled:opacity-50 transition shadow-sm"
+            >
+              Áp Dụng Thêm Vào Danh Sách
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- APPLICATION SCRIPT (VUE 3 COMPOSITION API) -->
+  <script>
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+      setup() {
+        // Danh sách các bài viết
+        const tasks = ref([
+          {
+            id: Date.now(),
+            link: '',
+            comments: '',
+            status: 'idle', // 'idle' | 'running' | 'success' | 'error'
+            result: '',
+            orderId: null
+          }
+        ]);
+
+        // Cờ trạng thái hàng đợi đang chạy
+        const isRunning = ref(false);
+        const shouldStop = ref(false);
+
+        // State cho Cấu hình
+        const activeServiceId = ref(localStorage.getItem('user_baostar_service_id') || '');
+        const delaySeconds = ref(Number(localStorage.getItem('user_baostar_delay')) || 1.5);
+
+        const saveSettings = () => {
+          localStorage.setItem('user_baostar_service_id', activeServiceId.value);
+          localStorage.setItem('user_baostar_delay', String(delaySeconds.value));
+        };
+
+        const selectService = (s) => {
+          activeServiceId.value = String(s.service);
+          saveSettings();
+          showServicesModal.value = false;
+        };
+
+        // State cho Modal Tra cứu Dịch vụ
+        const showServicesModal = ref(false);
+        const servicesList = ref([]);
+        const loadingServices = ref(false);
+        const servicesError = ref('');
+        const serviceSearch = ref('');
+        const serviceFilterType = ref('comment'); // 'all' | 'comment'
+        const copiedId = ref(null);
+
+        // State cho Modal Nhập nhanh
+        const showBulkModal = ref(false);
+        const bulkLinksText = ref('');
+        const bulkCommentsText = ref('');
+
+        // Helper đếm dòng
+        const countLines = (str) => {
+          if (!str || typeof str !== 'string') return 0;
+          return str.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0).length;
+        };
+
+        // Tính số lượng bình luận hợp lệ thời gian thực
+        const getValidCommentCount = (commentsText) => {
+          return countLines(commentsText);
+        };
+
+        // Đếm theo trạng thái
+        const countByStatus = (statusName) => {
+          return tasks.value.filter(t => t.status === statusName).length;
+        };
+
+        // Số lượng bài đã xử lý
+        const completedCount = computed(() => {
+          return tasks.value.filter(t => t.status === 'success' || t.status === 'error').length;
+        });
+
+        // Phần trăm tiến trình hoàn thành
+        const progressPercent = computed(() => {
+          if (tasks.value.length === 0) return 0;
+          return Math.round((completedCount.value / tasks.value.length) * 100);
+        });
+
+        // Lọc danh sách dịch vụ
+        const filteredServices = computed(() => {
+          let list = servicesList.value;
+          if (serviceFilterType.value === 'comment') {
+            list = list.filter(s => {
+              const str = ((s.name || '') + ' ' + (s.category || '')).toLowerCase();
+              return str.includes('comment') || str.includes('bình luận') || str.includes('cmt');
+            });
+          }
+          if (serviceSearch.value.trim()) {
+            const q = serviceSearch.value.toLowerCase().trim();
+            list = list.filter(s => {
+              return (
+                String(s.service).includes(q) ||
+                (s.name && s.name.toLowerCase().includes(q)) ||
+                (s.category && s.category.toLowerCase().includes(q))
+              );
+            });
+          }
+          return list;
+        });
+
+        // Tải danh sách dịch vụ từ backend
+        const fetchServices = async () => {
+          loadingServices.value = true;
+          servicesError.value = '';
+          try {
+            const res = await fetch('/api/services');
+            const data = await res.json();
+            if (res.ok && data.success && Array.isArray(data.services)) {
+              servicesList.value = data.services;
+            } else {
+              servicesError.value = data.message || 'Không thể tải danh sách dịch vụ';
+            }
+          } catch (err) {
+            servicesError.value = 'Lỗi kết nối: ' + err.message;
+          } finally {
+            loadingServices.value = false;
+          }
+        };
+
+        const openServicesModal = () => {
+          showServicesModal.value = true;
+          if (servicesList.value.length === 0) {
+            fetchServices();
+          }
+        };
+
+        const copyServiceId = (id) => {
+          navigator.clipboard.writeText(String(id));
+          copiedId.value = id;
+          setTimeout(() => {
+            if (copiedId.value === id) copiedId.value = null;
+          }, 2000);
+        };
+
+        // Thêm 1 bài viết mới
+        const addTask = () => {
+          tasks.value.push({
+            id: Date.now() + Math.random(),
+            link: '',
+            comments: '',
+            status: 'idle',
+            result: '',
+            orderId: null
+          });
+        };
+
+        // Áp dụng nhập nhanh hàng loạt
+        const applyBulkImport = () => {
+          const links = bulkLinksText.value
+            .split(/\r?\n/)
+            .map(l => l.trim())
+            .filter(l => l.length > 0);
+
+          if (links.length === 0) return;
+
+          // Nếu danh sách chỉ có 1 bài rỗng thì thay thế nó
+          if (tasks.value.length === 1 && !tasks.value[0].link && !tasks.value[0].comments) {
+            tasks.value = [];
+          }
+
+          links.forEach((url, idx) => {
+            tasks.value.push({
+              id: Date.now() + idx + Math.random(),
+              link: url,
+              comments: bulkCommentsText.value.trim(),
+              status: 'idle',
+              result: '',
+              orderId: null
+            });
+          });
+
+          bulkLinksText.value = '';
+          bulkCommentsText.value = '';
+          showBulkModal.value = false;
+        };
+
+        // Xuất file CSV báo cáo kết quả
+        const exportToCSV = () => {
+          const headers = ['STT', 'Link_Facebook', 'So_Comment', 'Trang_Thai', 'Order_ID', 'Ket_Qua'];
+          const rows = tasks.value.map((t, idx) => [
+            idx + 1,
+            `"${t.link.replace(/"/g, '""')}"`,
+            getValidCommentCount(t.comments),
+            t.status,
+            t.orderId || '',
+            `"${(t.result || '').replace(/"/g, '""')}"`
+          ]);
+
+          const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.setAttribute('href', url);
+          link.setAttribute('download', `Facebook_Comment_Batch_${new Date().toISOString().slice(0, 10)}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+
+        // Xóa 1 bài viết
+        const removeTask = (index) => {
+          if (tasks.value.length > 1) {
+            tasks.value.splice(index, 1);
+          }
+        };
+
+        // Đặt lại toàn bộ trạng thái về idle
+        const resetAllStatus = () => {
+          tasks.value.forEach(task => {
+            task.status = 'idle';
+            task.result = '';
+            task.orderId = null;
+          });
+        };
+
+        // Xóa toàn bộ
+        const clearAllTasks = () => {
+          if (confirm('Bạn có chắc chắn muốn xóa toàn bộ danh sách bài viết?')) {
+            tasks.value = [
+              {
+                id: Date.now(),
+                link: '',
+                comments: '',
+                status: 'idle',
+                result: '',
+                orderId: null
+              }
+            ];
+          }
+        };
+
+        // Nạp dữ liệu mẫu để test nhanh
+        const loadSampleData = () => {
+          tasks.value = [
+            {
+              id: Date.now() + 1,
+              link: 'https://www.facebook.com/example/posts/10158291039821',
+              comments: 'Sản phẩm này tuyệt vời quá shop ơi!\nCho mình hỏi có màu xanh không?\nTư vấn inbox mình nhé\nShip về Hà Nội mất bao lâu vậy ạ?',
+              status: 'idle',
+              result: '',
+              orderId: null
+            },
+            {
+              id: Date.now() + 2,
+              link: 'https://www.facebook.com/example/posts/10158291039822',
+              comments: 'Hàng chuẩn chính hãng, ủng hộ shop dài dài!\n10 điểm cho chất lượng phục vụ\nĐã nhận hàng, đóng gói rất cẩn thận',
+              status: 'idle',
+              result: '',
+              orderId: null
+            },
+            {
+              id: Date.now() + 3,
+              link: 'https://www.facebook.com/example/posts/10158291039823',
+              comments: 'Giá bao nhiêu một bộ vậy ạ?\nCó khuyến mãi cho khách quen không?',
+              status: 'idle',
+              result: '',
+              orderId: null
+            }
+          ];
+        };
+
+        // Hàm dừng hàng đợi
+        const stopQueue = () => {
+          shouldStop.value = true;
+        };
+
+        // Hàm helper sleep
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // HÀNG ĐỢI XỬ LÝ TUẦN TỰ (SEQUENTIAL QUEUE RUNNER)
+        const runQueue = async () => {
+          const candidateTasks = tasks.value.filter(t => t.status !== 'success');
+          
+          if (candidateTasks.length === 0) {
+            alert('Tất cả bài viết trong danh sách đều đã thành công!');
+            return;
+          }
+
+          const hasValidTask = candidateTasks.some(
+            t => t.link.trim() !== '' && getValidCommentCount(t.comments) > 0
+          );
+
+          if (!hasValidTask) {
+            alert('Vui lòng nhập Link bài viết và ít nhất 1 dòng bình luận hợp lệ trước khi chạy!');
+            return;
+          }
+
+          isRunning.value = true;
+          shouldStop.value = false;
+
+          try {
+            for (let i = 0; i < tasks.value.length; i++) {
+              const currentTask = tasks.value[i];
+
+              if (shouldStop.value) {
+                console.warn('[Queue] Người dùng đã chủ động dừng hàng đợi.');
+                break;
+              }
+
+              if (currentTask.status === 'success') {
+                continue;
+              }
+
+              if (!currentTask.link || !currentTask.link.trim()) {
+                currentTask.status = 'error';
+                currentTask.result = 'Link bài viết trống.';
+                continue;
+              }
+
+              if (getValidCommentCount(currentTask.comments) === 0) {
+                currentTask.status = 'error';
+                currentTask.result = 'Chưa có bình luận hợp lệ nào.';
+                continue;
+              }
+
+              currentTask.status = 'running';
+              currentTask.result = 'Đang gửi yêu cầu xử lý...';
+
+              try {
+                const response = await fetch('/api/order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    link: currentTask.link,
+                    comments: currentTask.comments,
+                    serviceId: activeServiceId.value ? activeServiceId.value.trim() : undefined
+                  })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                  currentTask.status = 'success';
+                  currentTask.orderId = data.orderId;
+                  currentTask.result = data.message || 'Tạo đơn thành công!';
+                } else {
+                  currentTask.status = 'error';
+                  currentTask.result = data.message || 'Tạo đơn thất bại.';
+                }
+              } catch (networkErr) {
+                currentTask.status = 'error';
+                currentTask.result = 'Lỗi kết nối mạng: ' + networkErr.message;
+              }
+
+              if (i < tasks.value.length - 1 && !shouldStop.value) {
+                await sleep(delaySeconds.value * 1000);
+              }
+            }
+          } finally {
+            isRunning.value = false;
+            shouldStop.value = false;
+          }
+        };
+
+        return {
+          tasks,
+          isRunning,
+          shouldStop,
+          completedCount,
+          progressPercent,
+          getValidCommentCount,
+          countByStatus,
+          countLines,
+          addTask,
+          removeTask,
+          resetAllStatus,
+          clearAllTasks,
+          loadSampleData,
+          runQueue,
+          stopQueue,
+          // Settings
+          activeServiceId,
+          delaySeconds,
+          saveSettings,
+          selectService,
+          // Services modal
+          showServicesModal,
+          servicesList,
+          loadingServices,
+          servicesError,
+          serviceSearch,
+          serviceFilterType,
+          filteredServices,
+          copiedId,
+          openServicesModal,
+          fetchServices,
+          copyServiceId,
+          // Bulk import modal
+          showBulkModal,
+          bulkLinksText,
+          bulkCommentsText,
+          applyBulkImport,
+          // CSV Export
+          exportToCSV
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

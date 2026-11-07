@@ -1,0 +1,27 @@
+{
+  "name": "baostar-batch-tool",
+  "version": "1.0.0",
+  "description": "Monolithic batch comment ordering tool for Facebook posts via Baostar SMM API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "baostar",
+    "smm",
+    "facebook-comments",
+    "batch-order",
+    "express",
+    "vue3"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
+
